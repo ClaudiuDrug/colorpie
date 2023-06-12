@@ -1,55 +1,71 @@
 # -*- coding: UTF-8 -*-
 
+from sys import version_info
 
-ATTRIBUTES = {
-    "reset": 0,
-    "bold": 1,  # or increased intensity
-    "dark": 2,
-    "italic": 3,  # not widely supported
-    "underline": 4,
-    "slow_blink": 5,  # not widely supported
-    "rapid_blink": 6,  # not widely supported
-    "reverse": 7,  # swap foreground and background colors
-    "concealed": 8  # not widely supported.
-}
+from .mapping import Attributes, Color, Colors
 
+__all__ = [
+    "ATTRIBUTES",
+    "COLORS",
+    "HIGHLIGHTS",
+    "ESCAPE",
+    "RESET",
+]
 
-COLORS: dict = {
-    "black": 30,
-    "red": 31,
-    "green": 32,
-    "yellow": 33,
-    "blue": 34,
-    "magenta": 35,
-    "cyan": 36,
-    "white": 37,
+ATTRIBUTES: Attributes = Attributes(
+    RESET=0,
+    BOLD=1,  # or increased intensity
+    DARK=2,
+    ITALIC=3,  # not widely supported
+    UNDERLINE=4,
+    SLOW_BLINK=5,  # not widely supported
+    RAPID_BLINK=6,  # not widely supported
+    REVERSE=7,  # swap foreground and background colors
+    CONCEALED=8,  # not widely supported.
+)
 
-    "bright_black": 90,
-    "bright_red": 91,
-    "bright_green": 92,
-    "bright_yellow": 93,
-    "bright_blue": 94,
-    "bright_magenta": 95,
-    "bright_cyan": 96,
-    "bright_white": 97,
-}
+COLORS: Colors = Colors(
+    BLACK=30,
+    RED=31,
+    GREEN=32,
+    YELLOW=33,
+    BLUE=34,
+    MAGENTA=35,
+    CYAN=36,
+    WHITE=37,
+    BRIGHT=Color(
+        BLACK=90,
+        RED=91,
+        GREEN=92,
+        YELLOW=93,
+        BLUE=94,
+        MAGENTA=95,
+        CYAN=96,
+        WHITE=97,
+    )
+)
 
-HIGHLIGHTS: dict = {
-    "black": 40,
-    "red": 41,
-    "green": 42,
-    "yellow": 43,
-    "blue": 44,
-    "magenta": 45,
-    "cyan": 46,
-    "white": 47,
+HIGHLIGHTS: Colors = Colors(
+    BLACK=40,
+    RED=41,
+    GREEN=42,
+    YELLOW=43,
+    BLUE=44,
+    MAGENTA=45,
+    CYAN=46,
+    WHITE=47,
+    BRIGHT=Color(
+        BLACK=100,
+        RED=101,
+        GREEN=102,
+        YELLOW=103,
+        BLUE=104,
+        MAGENTA=105,
+        CYAN=106,
+        WHITE=107,
+    )
+)
 
-    "bright_black": 100,
-    "bright_red": 101,
-    "bright_green": 102,
-    "bright_yellow": 103,
-    "bright_blue": 104,
-    "bright_magenta": 105,
-    "bright_cyan": 106,
-    "bright_white": 107,
-}
+ESCAPE: str = "\x1b[" if version_info.major > 2 else "\033["
+
+RESET: str = f"{ESCAPE}{ATTRIBUTES.RESET}m"

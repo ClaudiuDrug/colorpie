@@ -1,214 +1,146 @@
 # -*- coding: UTF-8 -*-
 
-from os import environ, system
+from os import environ
 from string import Template
-from sys import version_info
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Any
 
-from .constants import ATTRIBUTES, HIGHLIGHTS, COLORS
-from .mapping import __256_color__
+from .constants import ESCAPE, RESET
+
+__all__ = ["Style4Bit"]
 
 
 class Style4Bit(object):
     """
     Colorise text (16-color mode).
+    https://en.wikipedia.org/wiki/ANSI_escape_code#3-bit_and_4-bit
 
     Available colours:
-        black, red, green, yellow, blue, magenta, cyan, white,
-        bright_black, bright_red, bright_green, bright_yellow,
-        bright_blue, bright_magenta, bright_cyan and bright_white
+        - black: 30
+        - red: 31
+        - green: 32
+        - yellow: 33
+        - blue: 34
+        - magenta: 35
+        - cyan: 36
+        - white: 37
+        - bright black: 90
+        - bright red: 91
+        - bright green: 92
+        - bright yellow: 93
+        - bright blue: 94
+        - bright magenta: 95
+        - bright cyan: 96
+        - bright white: 97
 
     Available highlights:
-        black, red, green, yellow, blue, magenta, cyan, white,
-        bright_black, bright_red, bright_green, bright_yellow,
-        bright_blue, bright_magenta, bright_cyan and bright_white
+        - black: 40
+        - red: 41
+        - green: 42
+        - yellow: 43
+        - blue: 44
+        - magenta: 45
+        - cyan: 46
+        - white: 47
+        - bright black: 100
+        - bright red: 101
+        - bright green: 102
+        - bright yellow: 103
+        - bright blue: 104
+        - bright magenta: 105
+        - bright cyan: 106
+        - bright white: 107
 
     Available attributes:
-        reset, bold, dark, italic, underline,
-        slow_blink, rapid_blink, reverse, concealed
+        - reset: 0
+        - bold: 1 (or increased intensity)
+        - dark: 2
+        - italic: 3 (not widely supported)
+        - underline: 4
+        - slow blink: 5 (not widely supported)
+        - rapid blink: 6 (not widely supported)
+        - reverse: 7 (swap foreground and background colors)
+        - concealed: 8 (not widely supported.)
 
     Example:
+
+        from colorpie import Style4Bit \n
+        from colorpie.constants COLORS, HIGHLIGHTS, ATTRIBUTES as ATTRS \n
+
         style = Style4Bit(
-            color='red',
-            highlight='black',
-            attributes=['bold', 'slow_blink']
+            color=COLORS.RED,
+            highlight=HIGHLIGHTS.BLACK,
+            attributes=[ATTRS.BOLD, ATTRS.SLOW_BLINK]
         )
+
         print(style.format('Hello, World!'))
     """
 
-    system("color")
-
-    _escape: str = "\x1b[" if version_info.major > 2 else "\033["
-    _reset: str = f"{_escape}{ATTRIBUTES.get('reset')}m"
+    @staticmethod
+    def _type_name(value: Any) -> str:
+        return type(value).__name__
 
     @staticmethod
-    def _check_color(value: Union[str, int]) -> int:
-        if isinstance(value, str):
-            return COLORS.get(value)
-        elif isinstance(value, int) and (value in COLORS.values()):
-            return value
+    def _join(style: int, text: str) -> str:
+        return f"{ESCAPE}{style}m{text}"
 
-    @staticmethod
-    def _check_highlight(value: Union[str, int]) -> int:
-        if isinstance(value, str):
-            return HIGHLIGHTS.get(value)
-        elif isinstance(value, int) and (value in HIGHLIGHTS.values()):
-            return value
+    def __init__(self, color: int = None, highlight: int = None, attributes: Union[int, Tuple[int], List[int]] = None):
+        self._template: Template = self._as_template(color, highlight, attributes)
 
-    @staticmethod
-    def _check_attributes(args: Union[tuple, list, str, int]) -> Tuple[int]:
-        if isinstance(args, str) and (args in ATTRIBUTES):
-            return (ATTRIBUTES.get(args),)
+    def _as_template(self, color: int, highlight: int, attributes: Union[int, Tuple[int], List[int]]) -> Template:
+        text: str = "${text}"
 
-        elif isinstance(args, int) and (args in ATTRIBUTES.values()):
+        if color is not None:
+            self._check_color(color)
+            text = self._join(color, text)
+
+        if highlight is not None:
+            self._check_highlight(highlight)
+            text = self._join(highlight, text)
+
+        if attributes is not None:
+            attributes: Tuple[int] = self._check_attributes(attributes)
+            for attr in attributes:
+                text = self._join(attr, text)
+
+        if text.startswith(ESCAPE):
+            return Template(f"{text}{RESET}")
+
+        return Template(text)
+
+    def _check_color(self, value: int) -> int:
+        if not isinstance(value, int):
+            self._raise_for_error("color", value)
+        return value
+
+    def _check_highlight(self, value: int) -> int:
+        if not isinstance(value, int):
+            self._raise_for_error("highlight", value)
+        return value
+
+    def _check_attributes(self, args: Union[int, Tuple[int], List[int]]) -> Tuple[int]:
+        if isinstance(args, int):
             return (args,)
 
-        elif isinstance(args, (tuple, list)):
-            items: List[int] = list()
+        if isinstance(args, (tuple, list)):
+            return tuple(set(self._check_attribute(item) for item in args))
 
-            for arg in args:
-                if isinstance(arg, str) and (arg in ATTRIBUTES):
-                    items.append(ATTRIBUTES.get(arg))
-                elif isinstance(arg, int) and (arg in ATTRIBUTES.values()):
-                    items.append(arg)
-
-            if len(items) > 0:
-                return tuple(items)
-
-    def __init__(self, **kwargs):
-        self._color: int = self._check_color(kwargs.pop("color", None))
-        self._highlight: int = self._check_highlight(kwargs.pop("highlight", None))
-        self._attributes: Tuple[int] = self._check_attributes(kwargs.pop("attributes", None))
-
-        # 'True' if any of the fields is not None else 'False'
-        self._has_attrs: bool = any(
-            [
-                True if (item is not None) else False
-                for item in [
-                    self._color,
-                    self._highlight,
-                    self._attributes
-                ]
-            ]
+        raise TypeError(
+            f"Formatting 'attributes' must be of type 'int', 'list[int]' or "
+            f"'tuple[int]' not '{self._type_name(args)}'!"
         )
 
-        # To avoid checking for the fields
-        # every time we construct a string:
-        self._template: Template = self._as_template()
+    def _check_attribute(self, value: int) -> int:
+        if not isinstance(value, int):
+            self._raise_for_error("attribute", value)
+        return value
+
+    def _raise_for_error(self, name: str, value: Any):
+        raise TypeError(
+            f"Formatting '{name}' code must be of "
+            f"type 'int' not '{self._type_name(value)}'!"
+        )
 
     def format(self, text: str) -> str:
-
         if ("NO_COLOR" in environ) or ("ANSI_COLORS_DISABLED" in environ):
             return text
-
-        if self._template is not None:
-            return self._template.substitute(text=text)
-
-        return text
-
-    def _as_template(self) -> Template:
-        template: str = "${text}"
-
-        if self._has_attrs:
-
-            if self._color is not None:
-                template = self._join(self._color, template)
-
-            if self._highlight is not None:
-                template = self._join(self._highlight, template)
-
-            if self._attributes is not None:
-                for attr in self._attributes:
-                    template = self._join(attr, template)
-
-            return Template(f"{template}{self._reset}")
-
-    def _join(self, style: int, text: str) -> str:
-        return f"{self._escape}{style}m{text}"
-
-
-class Style8Bit(Style4Bit):
-    """
-    Colorise text (256-color mode).
-
-    For available colors and highlights see:
-        `https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit`
-
-    For attributes:
-        reset, bold, dark, italic, underline,
-        slow_blink, rapid_blink, reverse, concealed
-
-    Example:
-        style = Style8Bit(
-            color=0,
-            highlight=16,
-            attributes=['bold']
-        )
-        print(style.format('Hello, World!'))
-
-    Some colors can be referred to by their name:
-        black, maroon, green, olive, navy, purple, teal, silver,
-        grey, red, lime, yellow, blue, magenta, cyan, white, gold
-
-    Also, by their hex or rgb values.
-    (see `__256_color__` dict in `constants.py`).
-    """
-
-    def __init__(self, **kwargs):
-
-        self._name_keys: dict = {
-            value.name.lower(): key
-            for key, value in __256_color__.items()
-            if value.name is not None
-        }
-
-        self._hex_keys: dict = {
-            value.hex.__repr__(): key
-            for key, value in __256_color__.items()
-        }
-
-        self._rgb_keys: dict = {
-            value.rgb.__repr__(): key
-            for key, value in __256_color__.items()
-        }
-
-        super(Style8Bit, self).__init__(**kwargs)
-
-    def _check_color(self, value: Union[str, int]) -> int:
-
-        if isinstance(value, int) and (value in __256_color__):
-            return value
-
-        elif isinstance(value, str):
-            if value.lower() in self._name_keys:
-                return self._name_keys.get(value.lower())
-            elif value in self._hex_keys:
-                self._hex_keys.get(value)
-            elif value in self._rgb_keys:
-                self._rgb_keys.get(value)
-
-    def _check_highlight(self, value: Union[str, int]) -> int:
-        return self._check_color(value)
-
-    def _as_template(self) -> Template:
-        template: str = "${text}"
-
-        if self._has_attrs:
-
-            if self._color is not None:
-                template = self._join_color(self._color, template)
-
-            if self._highlight is not None:
-                template = self._join_highlight(self._highlight, template)
-
-            if self._attributes is not None:
-                for attr in self._attributes:
-                    template = self._join(attr, template)
-
-            return Template(f"{template}{self._reset}")
-
-    def _join_color(self, style: int, text: str) -> str:
-        return f"{self._escape}38;5;{style}m{text}"
-
-    def _join_highlight(self, style: int, text: str) -> str:
-        return f"{self._escape}48;5;{style}m{text}"
+        return self._template.substitute(text=text)

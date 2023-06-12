@@ -1,5 +1,15 @@
 # -*- coding: UTF-8 -*-
 
-from .handlers import Style4Bit, Style8Bit
+from os import system
 
-__all__ = ["Style4Bit", "Style8Bit"]
+from .constants import ATTRIBUTES, COLORS, HIGHLIGHTS
+from .handlers import Style4Bit
+
+system("color")
+
+__all__ = [
+    "Style4Bit",
+    "ATTRIBUTES",
+    "COLORS",
+    "HIGHLIGHTS",
+]
